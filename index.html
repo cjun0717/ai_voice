@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI语音通话聊天</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background-color: black;
+            color: white;
+        }
+        .profile-pic {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 5px solid white;
+            margin-top: 20%;
+        }
+        .status {
+            margin-top: 20px;
+        }
+        .call-button, .end-call-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        /*.call-button {
+            background-color: green;
+        }
+        .end-call-button {
+            background-color: red;
+        }*/
+        .call-button img, .end-call-button img {
+            width: 60px;
+            height: 60px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="init-screen">
+        <img src="./figure/avatar.jpg" alt="Profile Picture" class="profile-pic">
+        <div class="status">正在准备...</div>
+        <div class="call-button" onclick="startRecording()">
+            <img src="./figure/green.png" alt="Call Icon">
+        </div>
+    </div>
+    <div class="container hidden" id="recording-screen">
+        <img src="./figure/avatar.jpg" alt="Profile Picture" class="profile-pic">
+        <div class="status">正在录音...</div>
+        <div class="end-call-button" onclick="stopRecording()">
+            <img src="./figure/red.png" alt="End Call Icon">
+        </div>
+    </div>
+    <div class="container hidden" id="loading-screen">
+        <img src="./figure/avatar.jpg" alt="Profile Picture" class="profile-pic">
+        <div class="status">正在加载...</div>
+        <div class="end-call-button" onclick="stopRecording()">
+            <img src="./figure/red.png" alt="End Call Icon">
+        </div>
+    </div>
+    <div class="container hidden" id="speaking-screen">
+        <img src="./figure/avatar.jpg" alt="Profile Picture" class="profile-pic">
+        <div class="status">正在说话...</div>
+        <div class="end-call-button" onclick="endCall()">
+            <img src="./figure/red.png" alt="End Call Icon">
+        </div>
+    </div>
+
+    <script type="application/javascript">
+        let mediaRecorder;
+        let audioChunks = [];
+        let ws = new WebSocket("ws://localhost:8000/ws");
+
+        // 初始界面，开始录音
+        function startRecording() {
+            document.getElementById('init-screen').classList.add('hidden');
+            document.getElementById('recording-screen').classList.remove('hidden');
+
+            navigator.mediaDevices
+                .getUserMedia({ audio: true })
+                .then(stream => {
+
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+
+                    mediaRecorder.ondataavailable = (e) => {
+                        audioChunks.push(e.data);
+                    };
+
+                    mediaRecorder.addEventListener("stop", () => {
+                        document.getElementById('recording-screen').classList.add('hidden');
+                        document.getElementById('loading-screen').classList.remove('hidden');
+
+                        const audioBlob = new Blob(audioChunks, { type: "audio/ogg"});
+                        audioChunks = [];
+
+                        /*audioBlob.arrayBuffer().then(buffer => {
+                            ws.send(buffer);
+                        })*/
+                        ws.send(audioBlob);
+                    });
+                });
+        }
+
+        // 停止录音
+        function stopRecording() {
+            mediaRecorder.stop();
+        }
+
+        // 结束通话
+        function endCall() {
+            document.getElementById('speaking-screen').classList.add('hidden');
+            document.getElementById('init-screen').classList.remove('hidden');
+        }
+
+        // 处理WebSocket消息
+        ws.onmessage = (event) => {
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('speaking-screen').classList.remove('hidden');
+
+            const audioUrl = URL.createObjectURL(event.data);
+            const audio = new Audio(audioUrl);
+            audio.play();
+            audio.onended = () => {
+                endCall();
+            };
+        };
+    </script>
+</body>
+</html>
