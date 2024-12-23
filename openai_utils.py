@@ -28,7 +28,7 @@ async def get_areas_information(user_question):
 #查询天气信息的工具函数
 async def get_weather_information(location):
     # https://restapi.amap.com/v3/weather/weatherInfo?city=110101&key=<用户key>
-    url = f"https://restapi.amap.com/v3/weather/weatherInfo?city={location}&key=4c526ed13173863e7971ee2083b6a6b2"
+    url = f"https://restapi.amap.com/v3/weather/weatherInfo?city={location}&key=api_key"
     response = requests.get(url=url).json()
     return response
 
